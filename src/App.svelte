@@ -36,6 +36,9 @@
   let waitingForSettle = false;
   let scoreA = 0, scoreB = 0;
 
+  $: turnLabel = currentSide === 'A' ? 'A (Red)' : 'B (Blue)';
+  $: turnColor = currentSide === 'A' ? '#e63946' : '#1d4ed8';
+
   const center = (x, y) => ({ x, y });
 
   function allStopped() {
@@ -167,6 +170,8 @@
       const capped = clampFlick(dir);
       const preview = { x: from.x + capped.x * 6, y: from.y + capped.y * 6 };
 
+      const power = Math.round(Math.hypot(capped.x, capped.y) / MAX_FLICK * 100);
+
       ctx.strokeStyle = 'rgba(255,255,255,0.85)';
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 6]);
@@ -180,13 +185,15 @@
       ctx.arc(preview.x, preview.y, 4, 0, Math.PI*2);
       ctx.fillStyle = 'white';
       ctx.fill();
+
+      ctx.font = '600 14px system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(String(power), preview.x + 6, preview.y + 4);
     }
 
-    // Score + turn
+    // Score
     ctx.fillStyle = 'white';
     ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto';
     ctx.fillText(`A ${scoreA} - ${scoreB} B`, 16, 26);
-    ctx.fillText(`Turn: ${currentSide}`, 16, 48);
     ctx.restore();
   }
 
@@ -353,7 +360,7 @@
 
 <div class="wrap">
   <div class="hud">
-    <span class="badge">Single-player MVP</span>
+    <span class="badge" style="background: {turnColor}">Turn: {turnLabel}</span>
     <button on:click={reset}>Reset</button>
   </div>
   <canvas bind:this={canvas} width={width} height={height}></canvas>
