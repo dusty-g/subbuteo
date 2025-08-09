@@ -1,46 +1,42 @@
-<script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+<script>
+  import { onMount } from 'svelte';
   import Matter from 'matter-js';
 
-  let canvas: HTMLCanvasElement;
+  let canvas;
   let width = 900;
   let height = 600;
 
-  // Game config
+  // Config
   const PITCH_MARGIN = 20;
   const WALL_THICK = 40;
   const DISC_R = 18;
   const BALL_R = 10;
-  const MAX_FLICK = 12;      // cap initial velocity “power”
-  const LINEAR_DAMPING = 0.025; // air-like friction
-  const STOP_EPS = 0.03;     // velocities below this → considered stopped
+  const MAX_FLICK = 12;
+  const LINEAR_DAMPING = 0.025;
+  const STOP_EPS = 0.03;
   const GOAL_WIDTH = 160;
 
   // Matter aliases
   const {
-    Engine, Render, Runner, Bodies, Composite, Body, Events, Vector, Constraint, Mouse, MouseConstraint
+    Engine, Render, Runner, Bodies, Composite, Body, Events
   } = Matter;
 
-  let engine: Matter.Engine;
-  let render: Matter.Render;
-  let runner: Matter.Runner;
+  let engine, render, runner;
+  let ball;
+  let teamA = [];
+  let teamB = [];
 
-  // Bodies
-  let ball: Matter.Body;
-  let teamA: Matter.Body[] = [];
-  let teamB: Matter.Body[] = [];
-
-  // Aim UI state
+  // Aim/UI
   let aiming = false;
-  let aimedBody: Matter.Body | null = null;
-  let mousePos: Matter.Vector = { x: 0, y: 0 };
+  let aimedBody = null;
+  let mousePos = { x: 0, y: 0 };
 
-  // Turn logic
-  let currentSide: 'A' | 'B' = 'A';
+  // Turns/score
+  let currentSide = 'A';
   let waitingForSettle = false;
   let scoreA = 0, scoreB = 0;
 
-  const center = (x: number, y: number) => ({ x, y });
+  const center = (x, y) => ({ x, y });
 
   function allStopped() {
     const bodies = [ball, ...teamA, ...teamB];
@@ -54,30 +50,28 @@
     }
   }
 
-  function isOwnPiece(b: Matter.Body) {
+  function isOwnPiece(b) {
     return currentSide === 'A' ? teamA.includes(b) : teamB.includes(b);
   }
 
-  function clampFlick(vec: Matter.Vector) {
+  function clampFlick(vec) {
     const mag = Math.hypot(vec.x, vec.y);
     if (mag <= MAX_FLICK) return vec;
     const s = MAX_FLICK / (mag || 1);
     return { x: vec.x * s, y: vec.y * s };
   }
 
-  function makeDisc(x: number, y: number, r: number, color: string) {
-    const d = Bodies.circle(x, y, r, {
+  function makeDisc(x, y, r, color) {
+    return Bodies.circle(x, y, r, {
       restitution: 0.92,
       frictionAir: LINEAR_DAMPING,
-      frictionStatic: 0.0,
-      friction: 0.0,
+      frictionStatic: 0,
+      friction: 0,
       render: { fillStyle: color, strokeStyle: '#111', lineWidth: 1.5 }
     });
-    return d;
   }
 
-  function addPitch(world: Matter.World) {
-    // Walls around pitch (offscreen thick to keep inside)
+  function addPitch(world) {
     const left   = Bodies.rectangle(PITCH_MARGIN - WALL_THICK/2, height/2, WALL_THICK, height, { isStatic: true, render: { fillStyle: '#2b2b2b' } });
     const right  = Bodies.rectangle(width - PITCH_MARGIN + WALL_THICK/2, height/2, WALL_THICK, height, { isStatic: true, render: { fillStyle: '#2b2b2b' } });
     const top    = Bodies.rectangle(width/2, PITCH_MARGIN - WALL_THICK/2, width, WALL_THICK, { isStatic: true, render: { fillStyle: '#2b2b2b' } });
@@ -85,14 +79,12 @@
 
     Composite.add(world, [left, right, top, bottom]);
 
-    // Goals (just gaps in top/bottom walls via slim posts)
-    const postWidth = 12;
+    // Top/bottom goal gaps via slim bars
     const goalX1 = width/2 - GOAL_WIDTH/2;
     const goalX2 = width/2 + GOAL_WIDTH/2;
 
     const topL = Bodies.rectangle(goalX1/2, PITCH_MARGIN + 10, goalX1 - PITCH_MARGIN, 8, { isStatic: true, render: { fillStyle: '#444' } });
     const topR = Bodies.rectangle((goalX2 + width - PITCH_MARGIN)/2, PITCH_MARGIN + 10, (width - PITCH_MARGIN) - goalX2, 8, { isStatic: true, render: { fillStyle: '#444' } });
-
     const botL = Bodies.rectangle(goalX1/2, height - PITCH_MARGIN - 10, goalX1 - PITCH_MARGIN, 8, { isStatic: true, render: { fillStyle: '#444' } });
     const botR = Bodies.rectangle((goalX2 + width - PITCH_MARGIN)/2, height - PITCH_MARGIN - 10, (width - PITCH_MARGIN) - goalX2, 8, { isStatic: true, render: { fillStyle: '#444' } });
 
@@ -100,12 +92,12 @@
   }
 
   function resetPositions() {
-    // center ball
+    // Ball center
     Body.setPosition(ball, center(width/2, height/2));
     Body.setVelocity(ball, { x: 0, y: 0 });
     Body.setAngularVelocity(ball, 0);
 
-    // line up teams
+    // Teams
     const yA = height - 160;
     const yB = 160;
     const spacing = 80;
@@ -127,23 +119,22 @@
   }
 
   function checkGoals() {
-    // Ball crosses top or bottom gap area
     const x = ball.position.x;
     const y = ball.position.y;
     const withinGap = x > (width/2 - GOAL_WIDTH/2) && x < (width/2 + GOAL_WIDTH/2);
 
     if (withinGap && y < PITCH_MARGIN + 6) {
-      // Team A scores into top goal
+      // A scores (top)
       scoreA += 1;
       resetPositions();
     } else if (withinGap && y > height - PITCH_MARGIN - 6) {
-      // Team B scores into bottom goal
+      // B scores (bottom)
       scoreB += 1;
       resetPositions();
     }
   }
 
-  function drawPitchOverlay(ctx: CanvasRenderingContext2D) {
+  function drawPitchOverlay(ctx) {
     // Field
     ctx.save();
     ctx.fillStyle = '#0b7d3a';
@@ -185,14 +176,13 @@
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // power dot
       ctx.beginPath();
       ctx.arc(preview.x, preview.y, 4, 0, Math.PI*2);
       ctx.fillStyle = 'white';
       ctx.fill();
     }
 
-    // Score + turn badge
+    // Score + turn
     ctx.fillStyle = 'white';
     ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto';
     ctx.fillText(`A ${scoreA} - ${scoreB} B`, 16, 26);
@@ -200,7 +190,7 @@
     ctx.restore();
   }
 
-  function worldFromMouse(e: MouseEvent): Matter.Vector {
+  function worldFromMouse(e) {
     const rect = canvas.getBoundingClientRect();
     return {
       x: (e.clientX - rect.left) * (canvas.width / rect.width),
@@ -208,7 +198,7 @@
     };
   }
 
-  function pickBodyAt(pos: Matter.Vector): Matter.Body | null {
+  function pickBodyAt(pos) {
     const bodies = Composite.allBodies(engine.world);
     for (const b of bodies) {
       if (b.circleRadius) {
@@ -217,6 +207,46 @@
       }
     }
     return null;
+  }
+
+  function attachInputHandlers() {
+    const down = e => {
+      if (waitingForSettle) return;
+      mousePos = worldFromMouse(e);
+      const picked = pickBodyAt(mousePos);
+      if (picked && picked !== ball && isOwnPiece(picked)) {
+        aimedBody = picked;
+        aiming = true;
+      }
+    };
+    const move = e => {
+      mousePos = worldFromMouse(e);
+    };
+    const up = () => {
+      if (aiming && aimedBody) {
+        const from = aimedBody.position;
+        const raw = { x: from.x - mousePos.x, y: from.y - mousePos.y };
+        const capped = clampFlick(raw);
+        Body.setVelocity(aimedBody, capped);
+        aiming = false;
+        aimedBody = null;
+        waitingForSettle = true;
+      }
+    };
+
+    canvas.addEventListener('mousedown', down);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+
+    return () => {
+      canvas.removeEventListener('mousedown', down);
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+  }
+
+  function reset() {
+    resetPositions();
   }
 
   onMount(() => {
@@ -229,7 +259,7 @@
         width,
         height,
         wireframes: false,
-        background: '#0b7d3a' // we’ll paint the field overlay each frame
+        background: '#0b7d3a'
       }
     });
 
@@ -247,83 +277,41 @@
     teamA = [
       makeDisc(width/2 - 80, height - 160, DISC_R, '#e63946'),
       makeDisc(width/2,       height - 160, DISC_R, '#e63946'),
-      makeDisc(width/2 + 80, height - 160, DISC_R, '#e63946')
+      makeDisc(width/2 + 80,  height - 160, DISC_R, '#e63946')
     ];
     teamB = [
       makeDisc(width/2 - 80, 160, DISC_R, '#1d4ed8'),
       makeDisc(width/2,       160, DISC_R, '#1d4ed8'),
-      makeDisc(width/2 + 80, 160, DISC_R, '#1d4ed8')
+      makeDisc(width/2 + 80,  160, DISC_R, '#1d4ed8')
     ];
 
     Composite.add(engine.world, [ball, ...teamA, ...teamB]);
 
-    // Step & render
-    runner = Runner.create({ isFixed: true, delta: 1000/120 }); // 120 Hz physics
+    // Physics & render
+    runner = Runner.create({ isFixed: true, delta: 1000/120 });
     Runner.run(runner, engine);
     Render.run(render);
 
-    // Per-tick hooks
+    // Tick hooks
     Events.on(engine, 'afterUpdate', () => {
-      // Check goal after movement
       checkGoals();
-
-      // draw overlay on top
-      const ctx = render.context as CanvasRenderingContext2D;
+      const ctx = render.context;
       drawPitchOverlay(ctx);
-
       switchTurnIfSettle();
     });
 
-    // Input: click/drag/release to flick
-    const down = (e: MouseEvent) => {
-      if (waitingForSettle) return;
-      mousePos = worldFromMouse(e);
-      const picked = pickBodyAt(mousePos);
-      if (picked && picked !== ball && isOwnPiece(picked)) {
-        aimedBody = picked;
-        aiming = true;
-      }
-    };
-    const move = (e: MouseEvent) => {
-      mousePos = worldFromMouse(e);
-    };
-    const up = (e: MouseEvent) => {
-      if (aiming && aimedBody) {
-        const from = aimedBody.position;
-        const raw = { x: from.x - mousePos.x, y: from.y - mousePos.y };
-        const capped = clampFlick(raw);
+    const detach = attachInputHandlers();
 
-        // Apply impulse as setting velocity directly for arcade feel
-        Body.setVelocity(aimedBody, capped);
-
-        aiming = false;
-        aimedBody = null;
-        waitingForSettle = true;
-      }
-    };
-
-    canvas.addEventListener('mousedown', down);
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-
-    onDestroy(() => {
-      canvas.removeEventListener('mousedown', down);
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
+    // Cleanup
+    return () => {
+      detach();
       Render.stop(render);
       Runner.stop(runner);
-      // @ts-ignore
       render.canvas = null;
-      // @ts-ignore
       render.context = null;
-      // @ts-ignore
       render.textures = {};
-    });
+    };
   });
-
-  function reset() {
-    resetPositions();
-  }
 </script>
 
 <style>
@@ -331,6 +319,7 @@
     display: grid;
     gap: 12px;
     justify-items: start;
+    padding: 12px;
   }
   canvas {
     image-rendering: crisp-edges;
