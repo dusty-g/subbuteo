@@ -137,66 +137,6 @@
     }
   }
 
-  function drawPitchOverlay(ctx) {
-    // Field
-    ctx.save();
-    ctx.fillStyle = '#0b7d3a';
-    ctx.fillRect(PITCH_MARGIN, PITCH_MARGIN, width - 2*PITCH_MARGIN, height - 2*PITCH_MARGIN);
-
-    // Midline + circle
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(PITCH_MARGIN, height/2);
-    ctx.lineTo(width - PITCH_MARGIN, height/2);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(width/2, height/2, 70, 0, Math.PI*2);
-    ctx.stroke();
-
-    // Goals
-    ctx.beginPath();
-    ctx.moveTo(width/2 - GOAL_WIDTH/2, PITCH_MARGIN);
-    ctx.lineTo(width/2 + GOAL_WIDTH/2, PITCH_MARGIN);
-    ctx.moveTo(width/2 - GOAL_WIDTH/2, height - PITCH_MARGIN);
-    ctx.lineTo(width/2 + GOAL_WIDTH/2, height - PITCH_MARGIN);
-    ctx.stroke();
-
-    // Aim line
-    if (aiming && aimedBody) {
-      const from = aimedBody.position;
-      const dir = { x: from.x - mousePos.x, y: from.y - mousePos.y };
-      const capped = clampFlick(dir);
-      const preview = { x: from.x + capped.x * 6, y: from.y + capped.y * 6 };
-
-      const power = Math.round(Math.hypot(capped.x, capped.y) / MAX_FLICK * 100);
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 6]);
-      ctx.beginPath();
-      ctx.moveTo(from.x, from.y);
-      ctx.lineTo(preview.x, preview.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.beginPath();
-      ctx.arc(preview.x, preview.y, 4, 0, Math.PI*2);
-      ctx.fillStyle = 'white';
-      ctx.fill();
-
-      ctx.font = '600 14px system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText(String(power), preview.x + 6, preview.y + 4);
-    }
-
-    // Score
-    ctx.fillStyle = 'white';
-    ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto';
-    ctx.fillText(`A ${scoreA} - ${scoreB} B`, 16, 26);
-    ctx.restore();
-  }
-
   function worldFromMouse(e) {
     const rect = canvas.getBoundingClientRect();
     return {
@@ -302,9 +242,86 @@
     // Tick hooks
     Events.on(engine, 'afterUpdate', () => {
       checkGoals();
-      const ctx = render.context;
-      drawPitchOverlay(ctx);
       switchTurnIfSettle();
+    });
+
+    // Field under bodies
+    Events.on(render, 'beforeRender', () => {
+      const ctx = render.context;
+      ctx.save();
+
+      // field
+      ctx.fillStyle = '#0b7d3a';
+      ctx.fillRect(PITCH_MARGIN, PITCH_MARGIN, width - 2*PITCH_MARGIN, height - 2*PITCH_MARGIN);
+
+      // midline + circle
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(PITCH_MARGIN, height/2);
+      ctx.lineTo(width - PITCH_MARGIN, height/2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(width/2, height/2, 70, 0, Math.PI*2);
+      ctx.stroke();
+
+      // goal lines
+      ctx.beginPath();
+      ctx.moveTo(width/2 - GOAL_WIDTH/2, PITCH_MARGIN);
+      ctx.lineTo(width/2 + GOAL_WIDTH/2, PITCH_MARGIN);
+      ctx.moveTo(width/2 - GOAL_WIDTH/2, height - PITCH_MARGIN);
+      ctx.lineTo(width/2 + GOAL_WIDTH/2, height - PITCH_MARGIN);
+      ctx.stroke();
+
+      ctx.restore();
+    });
+
+    // Aim + HUD on top
+    Events.on(render, 'afterRender', () => {
+      const ctx = render.context;
+      ctx.save();
+
+      if (aiming && aimedBody) {
+        const from = aimedBody.position;
+        const dir = { x: from.x - mousePos.x, y: from.y - mousePos.y };
+        const capped = clampFlick(dir);
+        const preview = { x: from.x + capped.x * 6, y: from.y + capped.y * 6 };
+        const power = Math.round((Math.hypot(capped.x, capped.y) / MAX_FLICK) * 100);
+
+        // selection halo
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(from.x, from.y, (aimedBody.circleRadius || 18) + 6, 0, Math.PI*2);
+        ctx.stroke();
+
+        // aim line
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(preview.x, preview.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // tip + power label
+        ctx.beginPath();
+        ctx.arc(preview.x, preview.y, 4, 0, Math.PI*2);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+
+        ctx.font = '600 14px system-ui, -apple-system, Segoe UI, Roboto';
+        ctx.fillStyle = 'white';
+        ctx.fillText(String(power), preview.x + 6, preview.y + 4);
+      }
+
+      // Score
+      ctx.fillStyle = 'white';
+      ctx.font = '600 16px system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(`A ${scoreA} - ${scoreB} B`, 16, 26);
+
+      ctx.restore();
     });
 
     const detach = attachInputHandlers();
