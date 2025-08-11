@@ -344,11 +344,14 @@
     gap: 12px;
     justify-items: start;
     padding: 12px;
+    width: 100%;
   }
   canvas {
     image-rendering: crisp-edges;
     border-radius: 10px;
     box-shadow: 0 6px 24px rgba(0,0,0,.25);
+    max-width: 100%;
+    height: auto;
   }
   .hud {
     display: flex;
