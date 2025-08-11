@@ -137,11 +137,20 @@
     }
   }
 
-  function worldFromMouse(e) {
+  function worldFromPointer(e) {
     const rect = canvas.getBoundingClientRect();
+    let clientX;
+    let clientY;
+    if (e.touches && e.touches.length) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
     return {
-      x: (e.clientX - rect.left) * (canvas.width / rect.width),
-      y: (e.clientY - rect.top) * (canvas.height / rect.height)
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
     };
   }
 
@@ -158,8 +167,9 @@
 
   function attachInputHandlers() {
     const down = e => {
+      e.preventDefault();
       if (waitingForSettle) return;
-      mousePos = worldFromMouse(e);
+      mousePos = worldFromPointer(e);
       const picked = pickBodyAt(mousePos);
       if (picked && picked !== ball && isOwnPiece(picked)) {
         aimedBody = picked;
@@ -167,9 +177,11 @@
       }
     };
     const move = e => {
-      mousePos = worldFromMouse(e);
+      e.preventDefault();
+      mousePos = worldFromPointer(e);
     };
-    const up = () => {
+    const up = e => {
+      e.preventDefault();
       if (aiming && aimedBody) {
         const from = aimedBody.position;
         const raw = { x: from.x - mousePos.x, y: from.y - mousePos.y };
@@ -181,14 +193,14 @@
       }
     };
 
-    canvas.addEventListener('mousedown', down);
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
+    canvas.addEventListener('pointerdown', down, { passive: false });
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up, { passive: false });
 
     return () => {
-      canvas.removeEventListener('mousedown', down);
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
+      canvas.removeEventListener('pointerdown', down);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
     };
   }
 
@@ -197,6 +209,7 @@
   }
 
   onMount(() => {
+    canvas.style.touchAction = 'none';
     engine = Engine.create({ gravity: { x: 0, y: 0 } });
 
     render = Render.create({
