@@ -12,7 +12,9 @@
   const DISC_R = 18;
   const BALL_R = 10;
   const MAX_FLICK = 24;
-  const LINEAR_DAMPING = 0.025;
+  // Higher damping slows players faster while keeping the ball lively
+  const LINEAR_DAMPING = 0.05;
+  const BALL_LINEAR_DAMPING = 0.025;
   const STOP_EPS = 0.03;
   const GOAL_WIDTH = 160;
 
@@ -229,7 +231,7 @@
     // Ball
     ball = Bodies.circle(width/2, height/2, BALL_R, {
       restitution: 0.92,
-      frictionAir: LINEAR_DAMPING,
+      frictionAir: BALL_LINEAR_DAMPING,
       render: { fillStyle: '#fff', strokeStyle: '#111', lineWidth: 1.2 }
     });
 
