@@ -12,7 +12,7 @@
   const DISC_R = 18;
   const BALL_R = 10;
   const MAX_FLICK = 24;
-  const LINEAR_DAMPING = 0.025;
+  const LINEAR_DAMPING = 0.020;
   const STOP_EPS = 0.03;
   const GOAL_WIDTH = 160;
 
