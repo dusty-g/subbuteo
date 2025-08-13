@@ -255,10 +255,10 @@
     // Tick hooks
     Events.on(engine, 'beforeUpdate', () => {
       const threshold = 2;
-      const slow = 0.9;
+      const slow = 0.88;
       const fast = 0.98;
 
-      for (const b of [...teamA, ...teamB]) {
+      for (const b of [ball, ...teamA, ...teamB]) {
         const v = b.velocity;
         const speed = Math.hypot(v.x, v.y);
         const t = Math.min(speed / threshold, 1);
