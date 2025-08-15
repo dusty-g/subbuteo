@@ -75,23 +75,55 @@
   }
 
   function addPitch(world) {
-    const left   = Bodies.rectangle(PITCH_MARGIN - WALL_THICK/2, height/2, WALL_THICK, height, { isStatic: true, render: { fillStyle: '#2b2b2b' } });
-    const right  = Bodies.rectangle(width - PITCH_MARGIN + WALL_THICK/2, height/2, WALL_THICK, height, { isStatic: true, render: { fillStyle: '#2b2b2b' } });
-    const top    = Bodies.rectangle(width/2, PITCH_MARGIN - WALL_THICK/2, width, WALL_THICK, { isStatic: true, render: { fillStyle: '#2b2b2b' } });
-    const bottom = Bodies.rectangle(width/2, height - PITCH_MARGIN + WALL_THICK/2, width, WALL_THICK, { isStatic: true, render: { fillStyle: '#2b2b2b' } });
-
-    Composite.add(world, [left, right, top, bottom]);
-
-    // Top/bottom goal gaps via slim bars
     const goalX1 = width/2 - GOAL_WIDTH/2;
     const goalX2 = width/2 + GOAL_WIDTH/2;
 
-    const topL = Bodies.rectangle(goalX1/2, PITCH_MARGIN + 10, goalX1 - PITCH_MARGIN, 8, { isStatic: true, render: { fillStyle: '#444' } });
-    const topR = Bodies.rectangle((goalX2 + width - PITCH_MARGIN)/2, PITCH_MARGIN + 10, (width - PITCH_MARGIN) - goalX2, 8, { isStatic: true, render: { fillStyle: '#444' } });
-    const botL = Bodies.rectangle(goalX1/2, height - PITCH_MARGIN - 10, goalX1 - PITCH_MARGIN, 8, { isStatic: true, render: { fillStyle: '#444' } });
-    const botR = Bodies.rectangle((goalX2 + width - PITCH_MARGIN)/2, height - PITCH_MARGIN - 10, (width - PITCH_MARGIN) - goalX2, 8, { isStatic: true, render: { fillStyle: '#444' } });
+    const left   = Bodies.rectangle(
+      PITCH_MARGIN - WALL_THICK/2,
+      height/2,
+      WALL_THICK,
+      height,
+      { isStatic: true, render: { fillStyle: '#2b2b2b' } }
+    );
+    const right  = Bodies.rectangle(
+      width - PITCH_MARGIN + WALL_THICK/2,
+      height/2,
+      WALL_THICK,
+      height,
+      { isStatic: true, render: { fillStyle: '#2b2b2b' } }
+    );
 
-    Composite.add(world, [topL, topR, botL, botR]);
+    // Split top and bottom walls to leave a central goal gap
+    const topL = Bodies.rectangle(
+      (goalX1 + PITCH_MARGIN)/2,
+      PITCH_MARGIN - WALL_THICK/2,
+      goalX1 - PITCH_MARGIN,
+      WALL_THICK,
+      { isStatic: true, render: { fillStyle: '#2b2b2b' } }
+    );
+    const topR = Bodies.rectangle(
+      (goalX2 + width - PITCH_MARGIN)/2,
+      PITCH_MARGIN - WALL_THICK/2,
+      (width - PITCH_MARGIN) - goalX2,
+      WALL_THICK,
+      { isStatic: true, render: { fillStyle: '#2b2b2b' } }
+    );
+    const botL = Bodies.rectangle(
+      (goalX1 + PITCH_MARGIN)/2,
+      height - PITCH_MARGIN + WALL_THICK/2,
+      goalX1 - PITCH_MARGIN,
+      WALL_THICK,
+      { isStatic: true, render: { fillStyle: '#2b2b2b' } }
+    );
+    const botR = Bodies.rectangle(
+      (goalX2 + width - PITCH_MARGIN)/2,
+      height - PITCH_MARGIN + WALL_THICK/2,
+      (width - PITCH_MARGIN) - goalX2,
+      WALL_THICK,
+      { isStatic: true, render: { fillStyle: '#2b2b2b' } }
+    );
+
+    Composite.add(world, [left, right, topL, topR, botL, botR]);
   }
 
   function resetPositions() {
