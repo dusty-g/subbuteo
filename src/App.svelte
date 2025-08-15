@@ -36,6 +36,21 @@
   let waitingForSettle = false;
   let scoreA = 0, scoreB = 0;
 
+  let celebrating = false;
+  const GOAL_DELAY = 1500;
+  let confetti = [];
+
+  function spawnConfetti() {
+    const colors = ['#e63946', '#1d4ed8', '#ffbe0b', '#fb5607', '#ff006e', '#8338ec', '#3a86ff'];
+    confetti = Array.from({ length: 80 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * -40,
+      vx: (Math.random() - 0.5) * 4,
+      vy: Math.random() * 3 - 5,
+      color: colors[Math.floor(Math.random() * colors.length)]
+    }));
+  }
+
   $: turnLabel = currentSide === 'A' ? 'A (Red)' : 'B (Blue)';
   $: turnColor = currentSide === 'A' ? '#e63946' : '#1d4ed8';
 
@@ -151,9 +166,13 @@
 
     currentSide = 'A';
     waitingForSettle = false;
+    celebrating = false;
+    confetti = [];
   }
 
   function checkGoals() {
+    if (celebrating) return;
+
     const x = ball.position.x;
     const y = ball.position.y;
     const withinGap = x > (width/2 - GOAL_WIDTH/2) && x < (width/2 + GOAL_WIDTH/2);
@@ -161,11 +180,15 @@
     if (withinGap && y < PITCH_MARGIN + 6) {
       // A scores (top)
       scoreA += 1;
-      resetPositions();
+      celebrating = true;
+      spawnConfetti();
+      setTimeout(resetPositions, GOAL_DELAY);
     } else if (withinGap && y > height - PITCH_MARGIN - 6) {
       // B scores (bottom)
       scoreB += 1;
-      resetPositions();
+      celebrating = true;
+      spawnConfetti();
+      setTimeout(resetPositions, GOAL_DELAY);
     }
   }
 
@@ -200,7 +223,7 @@
   function attachInputHandlers() {
     const down = e => {
       e.preventDefault();
-      if (waitingForSettle) return;
+      if (waitingForSettle || celebrating) return;
       mousePos = worldFromPointer(e);
       const picked = pickBodyAt(mousePos);
       if (picked && picked !== ball && isOwnPiece(picked)) {
@@ -210,10 +233,12 @@
     };
     const move = e => {
       e.preventDefault();
+      if (celebrating) return;
       mousePos = worldFromPointer(e);
     };
     const up = e => {
       e.preventDefault();
+      if (celebrating) return;
       if (aiming && aimedBody) {
         const from = aimedBody.position;
         const raw = { x: from.x - mousePos.x, y: from.y - mousePos.y };
@@ -341,7 +366,25 @@
       const ctx = render.context;
       ctx.save();
 
-      if (aiming && aimedBody) {
+      if (celebrating) {
+        for (const p of confetti) {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.2;
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x, p.y, 4, 4);
+        }
+
+        const bannerW = 260;
+        const bannerH = 80;
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(width/2 - bannerW/2, height/2 - bannerH/2, bannerW, bannerH);
+        ctx.fillStyle = 'white';
+        ctx.font = '700 48px system-ui, -apple-system, Segoe UI, Roboto';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('GOAL!', width/2, height/2);
+      } else if (aiming && aimedBody) {
         const from = aimedBody.position;
         const dir = { x: from.x - mousePos.x, y: from.y - mousePos.y };
         const capped = clampFlick(dir);
